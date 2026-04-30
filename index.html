@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0D1F3C">
+<title>每日庫存點貨</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,'PingFang TC',sans-serif;background:#F4F7FB;color:#1A1A2E;min-height:100vh}
+
+/* Header */
+.hdr{background:#0D1F3C;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.hdr-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.hdr-left h1{color:#fff;font-size:16px;font-weight:700;margin:0}
+.hdr-left .sub{color:#A8C4E8;font-size:11px;margin-top:2px}
+.hdr-btns{display:flex;gap:6px;flex-shrink:0}
+.ib{background:rgba(255,255,255,.13);border:none;border-radius:9px;color:#fff;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;touch-action:manipulation}
+
+/* Tabs */
+.tabs{display:flex;overflow-x:auto;gap:6px;padding:6px 12px;background:#0D1F3C;border-bottom:1px solid rgba(255,255,255,.08)}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:5px 13px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:none;color:rgba(255,255,255,.55);background:rgba(255,255,255,.08);touch-action:manipulation;white-space:nowrap}
+.tab.on{color:#fff}
+.tab[data-c="南北貨"].on{background:#1A3A6B}
+.tab[data-c="肉品"].on{background:#7B2D00}
+.tab[data-c="蔬菜"].on{background:#1B4D2E}
+.tab[data-c="小菜類"].on{background:#3D1A6E}
+.tab[data-c="容器耗材"].on{background:#005F6B}
+.tab[data-c="自定義"].on{background:#424242}
+
+/* Date & search */
+.ctrl{background:#fff;border-bottom:1px solid #DDE6F0;padding:8px 12px;display:flex;align-items:center;gap:10px}
+.ctrl label{font-size:12px;color:#6B7A99;font-weight:600;white-space:nowrap}
+.ctrl input[type=date]{border:1.5px solid #DDE6F0;border-radius:8px;padding:5px 9px;font-size:13px;color:#1A1A2E;background:#F4F7FB;flex:1;font-family:inherit}
+.srch{position:relative;padding:7px 12px;background:#fff;border-bottom:1px solid #DDE6F0}
+.srch input{width:100%;padding:7px 10px 7px 30px;border-radius:9px;border:1.5px solid #DDE6F0;font-size:13px;background:#F4F7FB;color:#1A1A2E;font-family:inherit}
+.srch-ico{position:absolute;left:22px;top:50%;transform:translateY(-50%);color:#6B7A99;font-size:13px;pointer-events:none}
+
+/* List */
+.list{padding:8px 12px 130px}
+
+/* Card */
+.card{background:#fff;border-radius:13px;margin-bottom:9px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1.5px solid #DDE6F0}
+.card.has{border-color:#2B5BA8}
+.card-hdr{display:flex;align-items:center;padding:9px 10px 7px 12px;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-南北貨{background:#1A3A6B}.dot-肉品{background:#7B2D00}.dot-蔬菜{background:#1B4D2E}
+.dot-小菜類{background:#3D1A6E}.dot-容器耗材{background:#005F6B}.dot-自定義{background:#424242}
+.cname{font-size:14px;font-weight:700;flex:1;min-width:0}
+.alias-orig{font-size:10px;color:#6B7A99;font-weight:400;margin-left:3px}
+.check{color:#2B5BA8;font-size:11px;display:none;margin-left:2px}
+.card.has .check{display:inline}
+.ubadge{font-size:11px;color:#6B7A99;background:#F4F7FB;padding:2px 7px;border-radius:5px;font-weight:600;white-space:nowrap}
+.menu-btn{background:none;border:none;font-size:18px;color:#bbb;cursor:pointer;padding:3px 5px;border-radius:5px;touch-action:manipulation;flex-shrink:0;line-height:1}
+
+/* Action row */
+.act-row{display:none;background:#F5F6F8;border-top:1px solid #DDE6F0;padding:7px 10px;gap:6px;flex-wrap:wrap}
+.act-row.open{display:flex}
+.act{flex:1;min-width:65px;padding:7px 4px;border-radius:8px;border:none;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;text-align:center}
+.act-edit{background:#E3F2FD;color:#0D47A1}
+.act-clr{background:#FFF8E1;color:#5B4000}
+.act-del{background:#FFEBEE;color:#C62828}
+
+/* Input section */
+.inp-wrap{border-top:1px solid #DDE6F0}
+.inp-top{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#DDE6F0}
+.inp-cell{padding:8px 10px;display:flex;flex-direction:column;gap:3px}
+.inp-cell.in{background:#E8F5E9}
+.inp-cell.rem{background:#FFF8E1}
+.inp-lbl{font-size:10px;font-weight:700;letter-spacing:.4px}
+.inp-cell.in .inp-lbl{color:#1B5E20}
+.inp-cell.rem .inp-lbl{color:#5B4000}
+.inp-row{display:flex;align-items:center;gap:6px}
+.qb{width:38px;height:38px;border-radius:9px;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;touch-action:manipulation;user-select:none}
+.inp-cell.in .qb{background:#C8E6C9;color:#1B5E20}
+.inp-cell.rem .qb{background:#FFE082;color:#5B4000}
+.qb:active{opacity:.6;transform:scale(.9)}
+.qi{flex:1;text-align:center;font-size:20px;font-weight:700;border:none;background:transparent;color:#1A1A2E;padding:0;width:0;min-width:0;font-family:inherit}
+.qi:focus{outline:none}
+
+/* Price row */
+.price-row{background:#E3F2FD;border-top:1px solid #DDE6F0;padding:7px 12px;display:flex;align-items:center;gap:9px}
+.price-lbl{font-size:10px;font-weight:700;color:#0D47A1;white-space:nowrap}
+.price-inp{flex:1;border:1.5px solid #BBDEFB;border-radius:8px;background:#fff;font-size:15px;font-weight:700;color:#0D47A1;font-family:inherit;padding:6px 10px;min-width:0}
+.price-inp:focus{outline:none;border-color:#2B5BA8}
+.price-inp::placeholder{color:#90CAF9;font-weight:400}
+.price-sub{font-size:12px;color:#0D47A1;font-weight:700;white-space:nowrap;min-width:40px;text-align:right}
+
+/* Stock row */
+.stock-row{background:#F3E5F5;border-top:1px solid #DDE6F0;padding:7px 12px;display:flex;align-items:center;gap:9px}
+.stock-lbl{font-size:10px;font-weight:700;color:#6A1B9A;white-space:nowrap}
+.stock-inp{flex:1;border:1.5px solid #CE93D8;border-radius:8px;background:#fff;font-size:15px;font-weight:700;color:#4A148C;font-family:inherit;padding:6px 10px;min-width:0}
+.stock-inp:focus{outline:none;border-color:#6A1B9A}
+.stock-inp::placeholder{color:#CE93D8;font-weight:400}
+.stock-result{display:flex;align-items:center;gap:5px;background:#E1BEE7;border-radius:7px;padding:5px 10px;white-space:nowrap}
+.stock-result-lbl{font-size:10px;font-weight:700;color:#6A1B9A}
+.stock-result-val{font-size:16px;font-weight:800;color:#4A148C;min-width:20px;text-align:center}
+
+/* Bottom bar */
+.bot{position:fixed;bottom:0;left:0;right:0;background:#0D1F3C;padding:9px 14px calc(env(safe-area-inset-bottom,0px) + 9px);display:flex;align-items:center;gap:8px;box-shadow:0 -2px 12px rgba(0,0,0,.25);z-index:50}
+.bot-info{flex:1;min-width:0}
+.bot-lbl{font-size:10px;color:#A8C4E8;font-weight:500}
+.bot-cnt{font-size:14px;color:#fff;font-weight:700}
+.bot-total{font-size:10px;color:#FFE082;font-weight:600;min-height:13px}
+.bb{background:#2B5BA8;color:#fff;border:none;padding:8px 13px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;white-space:nowrap}
+.bb.ghost{background:rgba(255,255,255,.1)}
+
+/* Custom toolbar */
+.custom-bar{display:flex;gap:7px;margin-bottom:8px}
+.add-btn{display:flex;align-items:center;gap:7px;background:#fff;border:2px dashed #DDE6F0;border-radius:13px;padding:10px 14px;flex:1;cursor:pointer;color:#6B7A99;font-size:13px;font-weight:600;font-family:inherit;touch-action:manipulation}
+.clr-all-btn{background:#FFEBEE;border:none;border-radius:13px;padding:10px 12px;cursor:pointer;color:#C62828;font-size:12px;font-weight:700;font-family:inherit;touch-action:manipulation;white-space:nowrap}
+
+/* Sheets */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end}
+.overlay.open{display:flex}
+.sheet{background:#fff;width:100%;border-radius:18px 18px 0 0;padding:16px 14px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:88vh;overflow-y:auto}
+.sheet-title{font-size:15px;font-weight:700;margin-bottom:2px}
+.sheet-sub{font-size:11px;color:#6B7A99;margin-bottom:12px}
+.sheet-close{float:right;background:#F4F7FB;border:none;border-radius:50%;width:26px;height:26px;font-size:13px;cursor:pointer;color:#6B7A99;touch-action:manipulation}
+.f-row{margin-bottom:10px}
+.f-lbl{display:block;font-size:11px;color:#6B7A99;font-weight:700;margin-bottom:4px}
+.f-inp{width:100%;border:1.5px solid #DDE6F0;border-radius:9px;padding:9px 11px;font-size:14px;color:#1A1A2E;background:#F4F7FB;font-family:inherit}
+.f-inp:focus{outline:none;border-color:#2B5BA8}
+.fb{width:100%;background:#0D1F3C;color:#fff;border:none;padding:12px;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:7px;touch-action:manipulation}
+.fb.sec{background:#F4F7FB;color:#1A1A2E;border:1px solid #DDE6F0}
+.fb.danger{background:#FFEBEE;color:#C62828;border:1px solid #FFCDD2}
+.export-box{background:#F4F7FB;border-radius:9px;padding:10px;font-family:'Courier New',monospace;font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-all;max-height:240px;overflow-y:auto;margin-bottom:10px;border:1px solid #DDE6F0}
+
+/* Month report */
+.month-ctrl{display:flex;gap:7px;align-items:center;margin-bottom:12px}
+.month-ctrl select{flex:1;border:1.5px solid #DDE6F0;border-radius:9px;padding:7px 9px;font-size:13px;font-family:inherit;background:#F4F7FB;color:#1A1A2E}
+.month-calc-btn{background:#0D1F3C;color:#fff;border:none;padding:8px 14px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation}
+.m-section{margin-bottom:14px}
+.m-sec-title{font-size:12px;font-weight:700;color:#6B7A99;padding:6px 0 5px;border-bottom:1px solid #DDE6F0;margin-bottom:6px}
+.m-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #F0F4F8}
+.m-row:last-child{border-bottom:none}
+.m-item{font-size:13px;font-weight:600}
+.m-vals{font-size:12px;color:#6B7A99;text-align:right}
+.m-cost{font-size:12px;font-weight:700;color:#0D47A1}
+.m-stock{font-size:11px;color:#6A1B9A;font-weight:600}
+.m-grand{background:#0D1F3C;color:#fff;border-radius:10px;padding:11px 13px;display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.m-grand-lbl{font-size:12px;color:#A8C4E8}
+.m-grand-val{font-size:17px;font-weight:800;color:#FFE082}
+.share-row{display:flex;gap:7px;margin-top:11px}
+
+/* Confirm dialog */
+.cdlg-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;align-items:center;justify-content:center;padding:20px}
+.cdlg-bg.open{display:flex}
+.cdlg{background:#fff;border-radius:14px;padding:20px 18px;max-width:300px;width:100%;text-align:center}
+.cdlg-msg{font-size:14px;font-weight:500;color:#1A1A2E;margin-bottom:16px;line-height:1.5}
+.cdlg-btns{display:flex;gap:8px}
+.cdlg-ok{flex:1;background:#C62828;color:#fff;border:none;padding:11px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation}
+.cdlg-cancel{flex:1;background:#F4F7FB;color:#1A1A2E;border:1px solid #DDE6F0;padding:11px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation}
+
+.empty{text-align:center;padding:40px 16px;color:#6B7A99}
+.empty .ei{font-size:40px;margin-bottom:8px}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="hdr">
+  <div class="hdr-row">
+    <div class="hdr-left">
+      <h1>📦 每日庫存點貨</h1>
+      <div class="sub" id="hdrDate"></div>
+    </div>
+    <div class="hdr-btns">
+      <button class="ib" id="btnAdd" title="新增品項">＋</button>
+      <button class="ib" id="btnMonth" title="月總結">📊</button>
+      <button class="ib" id="btnExport" title="匯出今日">📤</button>
+
+    </div>
+  </div>
+</div>
+
+<div class="tabs" id="tabBar"></div>
+
+<div class="ctrl">
+  <label>日期</label>
+  <input type="date" id="datePicker">
+</div>
+<div class="srch">
+  <span class="srch-ico">🔍</span>
+  <input id="searchBox" placeholder="搜尋品項…">
+</div>
+
+<div class="list" id="itemList"></div>
+
+<!-- Bottom bar -->
+<div class="bot">
+  <div class="bot-info">
+    <div class="bot-lbl">已記錄品項</div>
+    <div class="bot-cnt" id="botCnt">0 / 0</div>
+    <div class="bot-total" id="botTotal"></div>
+  </div>
+  <button class="bb ghost" id="btnClearDay">清除今日</button>
+  <button class="bb" id="btnExport2">匯出 📋</button>
+</div>
+
+<!-- Export sheet -->
+<div class="overlay" id="sheetExport">
+  <div class="sheet">
+    <button class="sheet-close" data-close="sheetExport">✕</button>
+    <div class="sheet-title">匯出今日記錄</div>
+    <div class="sheet-sub" id="expSub"></div>
+    <div class="export-box" id="expBox"></div>
+    <button class="fb" id="btnCopy">📋 複製全部文字</button>
+    <button class="fb" id="btnNativeShare" style="background:#00B900">📤 分享給同事（LINE/訊息）</button>
+    <button class="fb sec" data-close="sheetExport">關閉</button>
+  </div>
+</div>
+
+<!-- Add/Edit sheet -->
+<div class="overlay" id="sheetAdd">
+  <div class="sheet">
+    <button class="sheet-close" data-close="sheetAdd">✕</button>
+    <div class="sheet-title" id="addTitle">新增品項</div>
+    <div class="sheet-sub" id="addSub">新增後出現在「自定義」分類</div>
+    <div class="f-row">
+      <label class="f-lbl">品項名稱</label>
+      <input class="f-inp" id="inName" placeholder="例：花枝丸">
+    </div>
+    <div class="f-row">
+      <label class="f-lbl">單位</label>
+      <input class="f-inp" id="inUnit" placeholder="例：包、瓶、斤">
+    </div>
+    <button class="fb" id="btnAddOk">新增品項</button>
+    <button class="fb sec" data-close="sheetAdd">取消</button>
+  </div>
+</div>
+
+<!-- Edit name sheet -->
+<div class="overlay" id="sheetEditName">
+  <div class="sheet">
+    <button class="sheet-close" data-close="sheetEditName">✕</button>
+    <div class="sheet-title">編輯顯示名稱</div>
+    <div class="sheet-sub" id="editNameSub"></div>
+    <div class="f-row">
+      <label class="f-lbl" id="editNameLbl">顯示名稱</label>
+      <input class="f-inp" id="editNameInp">
+    </div>
+    <button class="fb" id="btnEditNameOk">確認修改</button>
+    <button class="fb sec" data-close="sheetEditName">取消</button>
+  </div>
+</div>
+
+<!-- Edit unit sheet -->
+<div class="overlay" id="sheetEditUnit">
+  <div class="sheet">
+    <button class="sheet-close" data-close="sheetEditUnit">✕</button>
+    <div class="sheet-title">編輯單位</div>
+    <div class="sheet-sub" id="editUnitSub"></div>
+    <div class="f-row">
+      <label class="f-lbl" id="editUnitLbl">顯示單位</label>
+      <input class="f-inp" id="editUnitInp">
+    </div>
+    <button class="fb" id="btnEditUnitOk">確認修改</button>
+    <button class="fb sec" data-close="sheetEditUnit">取消</button>
+  </div>
+</div>
+
+<!-- Month sheet -->
+<div class="overlay" id="sheetMonth">
+  <div class="sheet">
+    <button class="sheet-close" data-close="sheetMonth">✕</button>
+    <div class="sheet-title">📊 月份庫存總結</div>
+    <div class="month-ctrl">
+      <select id="selYear"></select>
+      <select id="selMon"></select>
+      <button class="month-calc-btn" id="btnCalc">計算</button>
+    </div>
+    <div id="monthResult"></div>
+  </div>
+</div>
+
+<!-- Custom confirm -->
+<div class="cdlg-bg" id="cdlg">
+  <div class="cdlg">
+    <div class="cdlg-msg" id="cdlgMsg"></div>
+    <div class="cdlg-btns">
+      <button class="cdlg-cancel" id="cdlgNo">取消</button>
+      <button class="cdlg-ok" id="cdlgYes">確認</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Static category data ──────────────────────────────────────────
+const SCATS = [
+  {name:'南北貨', items:[
+    {n:'米',u:'包'},{n:'沙拉油',u:'桶'},{n:'特砂',u:'包'},{n:'米酒',u:'瓶'},
+    {n:'味素',u:'包'},{n:'獨辣天椒',u:'包'},{n:'剝皮辣椒',u:'罐'},{n:'東泉辣椒醬',u:'瓶'},
+    {n:'醬油',u:'瓶'},{n:'素蠔油',u:'瓶'},{n:'柴魚粉',u:'包'},{n:'雞粉',u:'包'},
+    {n:'冰糖',u:'包'},{n:'二砂',u:'包'},{n:'椒麻粉（味好美）',u:'包'},{n:'鹽巴',u:'包'},
+    {n:'香油',u:'瓶'},{n:'麻油',u:'瓶'},{n:'鰹魚醬油',u:'瓶'},{n:'味淋',u:'瓶'},
+    {n:'冬瓜糖漿',u:'瓶'},{n:'油蔥酥',u:'包'},{n:'豆瓣醬',u:'罐'},{n:'沙茶醬',u:'罐'},
+    {n:'龍埯醋',u:'瓶'},{n:'飛馬牌滷包',u:'包'},{n:'免洗筷',u:'包'},{n:'免洗湯匙',u:'包'},
+    {n:'擦手紙',u:'包'},{n:'醜小鴨洗碗精',u:'瓶'},{n:'醜小鴨漂白水',u:'瓶'},
+    {n:'一斤袋',u:'包'},{n:'五斤袋',u:'包'},{n:'十斤袋',u:'包'},{n:'十五斤袋',u:'包'},
+    {n:'NBL乳膠手套S',u:'盒'},{n:'NBL乳膠手套M',u:'盒'},
+    {n:'紅白手套8',u:'雙'},{n:'紅白手套8/2/1',u:'雙'},{n:'菜瓜布',u:'片'},
+  ]},
+  {name:'肉品', items:[
+    {n:'腳庫',u:'斤'},{n:'豬絞肉',u:'斤'},{n:'雞棒腿',u:'斤'},
+    {n:'雞翅',u:'斤'},{n:'牛肉',u:'包'},{n:'蛋',u:'顆'},
+  ]},
+  {name:'蔬菜', items:[
+    {n:'大白菜',u:'件'},{n:'高麗菜',u:'件'},{n:'波菜',u:'綑'},{n:'空心菜',u:'綑'},
+    {n:'小黃瓜',u:'件'},{n:'洋蔥',u:'斤'},{n:'薑',u:'斤'},{n:'辣椒',u:'斤'},{n:'蒜頭',u:'斤'},
+  ]},
+  {name:'小菜類', items:[
+    {n:'豆乾',u:'包'},{n:'米血',u:'片'},{n:'大油皮',u:'包'},{n:'筍乾',u:'五斤/包'},
+  ]},
+  {name:'容器耗材', items:[
+    {n:'750碗',u:'箱'},{n:'750蓋',u:'箱'},{n:'390碗',u:'箱'},{n:'390蓋',u:'箱'},
+    {n:'500cc杯',u:'箱'},{n:'外帶調料盒',u:'條'},{n:'封膜膠卷',u:'捲'},
+    {n:'兩杯袋',u:'包'},{n:'四杯袋',u:'包'},{n:'六杯袋',u:'包'},
+  ]},
+];
+
+// ── State (all persisted) ─────────────────────────────────────────
+function safeParse(key, fallback){
+  try{ const v=localStorage.getItem(key); return v?JSON.parse(v):fallback; }
+  catch(e){ console.warn('Reset corrupted key:',key); localStorage.removeItem(key); return fallback; }
+}
+let recs      = safeParse('inv2_recs',      {});
+let custom    = safeParse('inv2_custom',    []);
+let aliases   = safeParse('inv2_aliases',   {});
+let unitAlias = safeParse('inv2_unitAlias', {});
+let opening   = safeParse('inv2_opening',   {});
+
+let curCat  = '南北貨';
+let curDate = toDateStr(new Date());
+let openMenu = null;
+let editingName = null;
+let editingUnitName = null;
+let confirmCb = null;
+
+// ── Helpers ───────────────────────────────────────────────────────
+function toDateStr(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function fmtDate(d){
+  if(!d||d.length<10) return '';
+  const parts = d.split('-');
+  const y=parseInt(parts[0]), m=parseInt(parts[1]), day=parseInt(parts[2]);
+  const dt = new Date(y, m-1, day);
+  const w = ['日','一','二','三','四','五','六'][dt.getDay()];
+  return `${y}年${m}月${day}日 星期${w}`;
+}
+function getCats(){
+  const c = [...SCATS];
+  if(custom.length > 0 || curCat === '自定義') c.push({name:'自定義', items:custom});
+  return c;
+}
+function allItems(){ return getCats().flatMap(c => c.items) }
+function findItem(name){ return allItems().find(i => i.n === name) || null }
+function dn(name){ return aliases[name] || name }
+function du(name, origU){ return unitAlias[name] || origU }
+function gv(name, f){
+  var d = recs[curDate]; if(!d) return '';
+  var r = d[name]; if(!r) return '';
+  var v = r[f]; return (v === undefined || v === null) ? '' : v;
+}
+function gopen(name){ var v=opening[name]; return (v===undefined||v===null)?'':v; }
+
+function sv(name, f, v){
+  if(!recs[curDate]) recs[curDate] = {};
+  if(!recs[curDate][name]) recs[curDate][name] = {in:'', rem:'', price:''};
+  recs[curDate][name][f] = v;
+  const r = recs[curDate][name];
+  if(r.in==='' && r.rem==='' && r.price==='') delete recs[curDate][name];
+  if(recs[curDate] && !Object.keys(recs[curDate]).length) delete recs[curDate];
+  persist();
+}
+function sopen(name, v){
+  if(v === '' || v === null) delete opening[name];
+  else opening[name] = v;
+  persist();
+}
+
+function calcStock(name){
+  const op = parseFloat(gopen(name)) || 0;
+  const iv = parseFloat(gv(name,'in')) || 0;
+  const rv = parseFloat(gv(name,'rem')) || 0;
+  return op + iv - rv;
+}
+
+function persist(){
+  localStorage.setItem('inv2_recs',      JSON.stringify(recs));
+  localStorage.setItem('inv2_custom',    JSON.stringify(custom));
+  localStorage.setItem('inv2_aliases',   JSON.stringify(aliases));
+  localStorage.setItem('inv2_unitAlias', JSON.stringify(unitAlias));
+  localStorage.setItem('inv2_opening',   JSON.stringify(opening));
+  updateBot();
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+// Set date first, no try-catch
+try { document.getElementById('datePicker').value = curDate; } catch(e){}
+try { document.getElementById('hdrDate').textContent = fmtDate(curDate); } catch(e){}
+
+// Init each step independently so one failure doesn't block others
+try { initMonthSelects(); } catch(e){ console.error('initMonthSelects failed:', e); }
+try { buildTabs(); } catch(e){ console.error('buildTabs failed:', e); }
+try { renderList(); } catch(e){
+  console.error('renderList failed:', e);
+  document.getElementById('itemList').innerHTML =
+    '<div class="empty"><div class="ei">⚠️</div><p>清單載入錯誤：'+(e.message||e)+'</p></div>';
+}
+try { updateBot(); } catch(e){ console.error('updateBot failed:', e); }
+try { bindAll(); } catch(e){ console.error('bindAll failed:', e); }
+
+// ── Tab builder ───────────────────────────────────────────────────
+function buildTabs(){
+  const bar = document.getElementById('tabBar');
+  bar.innerHTML = '';
+  getCats().forEach(cat => {
+    const t = document.createElement('button');
+    t.className = 'tab' + (cat.name === curCat ? ' on' : '');
+    t.dataset.c = cat.name;
+    t.textContent = cat.name;
+    bar.appendChild(t);
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function renderList(){
+  const q = document.getElementById('searchBox').value.trim();
+  const cats = getCats();
+  const cat = cats.find(c => c.name === curCat) || cats[0];
+  const items = cat.items.filter(it => !q || it.n.includes(q) || dn(it.n).includes(q));
+  const list = document.getElementById('itemList');
+  const isC = curCat === '自定義';
+  let html = '';
+
+  if(isC){
+    html += `<div class="custom-bar">
+      <button class="add-btn" data-action="open-add">＋ 新增品項</button>
+      ${custom.length ? '<button class="clr-all-btn" data-action="clear-all-custom">🗑 全部刪除</button>' : ''}
+    </div>`;
+  }
+
+  if(!items.length){
+    html += `<div class="empty"><div class="ei">${q?'🔍':'📋'}</div><p>${q?`找不到「${q}」`:'尚無品項'}</p></div>`;
+    list.innerHTML = html; return;
+  }
+
+  items.forEach(it => {
+    const iv = gv(it.n,'in'), rv = gv(it.n,'rem'), pv = gv(it.n,'price');
+    const op = gopen(it.n);
+    const has = iv!=='' || rv!=='' || pv!=='';
+    const sub = (parseFloat(iv)||0) * (parseFloat(pv)||0);
+    const subStr = (iv!=='' && pv!=='') ? '小計 $' + sub.toFixed(0) : '';
+    const showStock = op!=='' || iv!=='' || rv!=='';
+    const stockVal = showStock ? calcStock(it.n) : '';
+    const isAlias = aliases[it.n] && aliases[it.n] !== it.n;
+    const unitDisp = du(it.n, it.u);
+    const enc = encodeURIComponent(it.n);
+
+    html += `
+    <div class="card${has?' has':''}" data-name="${enc}">
+      <div class="card-hdr">
+        <div class="dot dot-${curCat}"></div>
+        <div class="cname">${dn(it.n)}${isAlias?`<span class="alias-orig">(${it.n})</span>`:''}<span class="check">✓</span></div>
+        <div class="ubadge">${unitDisp}</div>
+        <button class="menu-btn" data-action="toggle-menu" data-name="${enc}">···</button>
+      </div>
+      <div class="act-row${openMenu===it.n?' open':''}">
+        <button class="act act-edit" data-action="edit-name" data-name="${enc}">✏️ 改名</button>
+        <button class="act act-edit" data-action="edit-unit" data-name="${enc}">📐 改單位</button>
+        <button class="act act-clr" data-action="clear-data" data-name="${enc}">🧹 清除今日</button>
+        ${isC?`<button class="act act-del" data-action="del-custom" data-name="${enc}">🗑 刪除</button>`:''}
+      </div>
+      <div class="inp-wrap">
+        <div class="inp-top">
+          <div class="inp-cell in">
+            <div class="inp-lbl">進 貨</div>
+            <div class="inp-row">
+              <button class="qb" data-action="adj" data-name="${enc}" data-field="in" data-delta="-1">−</button>
+              <input class="qi" type="number" inputmode="numeric" value="${iv}" placeholder="0" data-name="${enc}" data-field="in">
+              <button class="qb" data-action="adj" data-name="${enc}" data-field="in" data-delta="1">＋</button>
+            </div>
+          </div>
+          <div class="inp-cell rem">
+            <div class="inp-lbl">領 取</div>
+            <div class="inp-row">
+              <button class="qb" data-action="adj" data-name="${enc}" data-field="rem" data-delta="-1">−</button>
+              <input class="qi" type="number" inputmode="numeric" value="${rv}" placeholder="0" data-name="${enc}" data-field="rem">
+              <button class="qb" data-action="adj" data-name="${enc}" data-field="rem" data-delta="1">＋</button>
+            </div>
+          </div>
+        </div>
+        <div class="price-row">
+          <span class="price-lbl">單 價 $</span>
+          <input class="price-inp" type="number" inputmode="decimal" placeholder="輸入單價" value="${pv}" data-name="${enc}" data-field="price">
+          <span class="price-sub">${subStr}</span>
+        </div>
+        <div class="stock-row">
+          <span class="stock-lbl">期 初</span>
+          <input class="stock-inp" type="number" inputmode="numeric" placeholder="期初庫存" value="${op}" data-name="${enc}" data-field="opening">
+          <div class="stock-result">
+            <span class="stock-result-lbl">結存</span>
+            <span class="stock-result-val" id="stk-${enc}">${stockVal}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  });
+  list.innerHTML = html;
+}
+
+// ── Bot bar ───────────────────────────────────────────────────────
+function updateBot(){
+  const all = allItems();
+  const filled = all.filter(it => {
+    var dr = recs[curDate]; var d = dr ? dr[it.n] : null;
+    return d && (d.in!=='' || d.rem!=='' || d.price!=='');
+  }).length;
+  document.getElementById('botCnt').textContent = `${filled} / ${all.length}`;
+  let total = 0;
+  Object.values(recs[curDate]||{}).forEach(r => {
+    if(r.in!=='' && r.price!=='') total += (parseFloat(r.in)||0) * (parseFloat(r.price)||0);
+  });
+  document.getElementById('botTotal').textContent = total > 0 ? `今日進貨總計 $${total.toFixed(0)}` : '';
+}
+
+// ── Refresh helpers (no full re-render) ──────────────────────────
+const _last = {};
+function debounced(key){ const n=Date.now(); if(_last[key]&&n-_last[key]<300)return false; _last[key]=n; return true; }
+
+function refreshCard(name){
+  const enc = encodeURIComponent(name);
+  const card = document.querySelector(`.card[data-name="${enc}"]`);
+  if(!card) return;
+  const iv=gv(name,'in'), rv=gv(name,'rem'), pv=gv(name,'price');
+  card.classList.toggle('has', iv!=='' || rv!=='' || pv!=='');
+  const subEl = card.querySelector('.price-sub');
+  if(subEl){
+    const sub = (parseFloat(iv)||0)*(parseFloat(pv)||0);
+    subEl.textContent = (iv!==''&&pv!=='') ? '小計 $'+sub.toFixed(0) : '';
+  }
+  refreshStock(name);
+  updateBot();
+}
+
+function refreshStock(name){
+  const enc = encodeURIComponent(name);
+  const el = document.getElementById('stk-' + enc);
+  if(!el) return;
+  const iv=gv(name,'in'), rv=gv(name,'rem'), op=gopen(name);
+  el.textContent = (op!==''||iv!==''||rv!=='') ? calcStock(name) : '';
+}
+
+// ── Event binding ─────────────────────────────────────────────────
+function bindAll(){
+  // Tabs
+  document.getElementById('tabBar').addEventListener('click', e => {
+    const t = e.target.closest('.tab');
+    if(!t) return;
+    curCat = t.dataset.c; openMenu = null;
+    buildTabs(); renderList();
+  });
+
+  // Date
+  document.getElementById('datePicker').addEventListener('change', e => {
+    curDate = e.target.value;
+    document.getElementById('hdrDate').textContent = fmtDate(curDate);
+    renderList(); updateBot();
+  });
+
+  // Search
+  document.getElementById('searchBox').addEventListener('input', () => renderList());
+
+  // List — single delegation listener
+  document.getElementById('itemList').addEventListener('click', e => {
+    const el = e.target.closest('[data-action]');
+    if(!el) return;
+    const action = el.dataset.action;
+    const name = el.dataset.name ? decodeURIComponent(el.dataset.name) : null;
+
+    switch(action){
+      case 'toggle-menu':
+        openMenu = (openMenu === name) ? null : name;
+        renderList(); break;
+
+      case 'edit-name':
+        editingName = name;
+        document.getElementById('editNameSub').textContent = '原始名稱：' + name;
+        document.getElementById('editNameLbl').textContent = `顯示名稱（原名：${name}）`;
+        document.getElementById('editNameInp').value = dn(name);
+        openMenu = null; openSheet('sheetEditName'); break;
+
+      case 'edit-unit':
+        editingUnitName = name;
+        const it0 = findItem(name);
+        document.getElementById('editUnitSub').textContent = '品項：' + dn(name);
+        document.getElementById('editUnitLbl').textContent = `單位（原始：${it0?it0.u:''}）`;
+        document.getElementById('editUnitInp').value = du(name, it0?it0.u:'');
+        openMenu = null; openSheet('sheetEditUnit'); break;
+
+      case 'clear-data':
+        openMenu = null;
+        customConfirm('清除「' + dn(name) + '」的今日記錄？', () => {
+          if(recs[curDate]) delete recs[curDate][name];
+          persist(); renderList();
+        }); break;
+
+      case 'del-custom':
+        openMenu = null;
+        customConfirm('刪除品項「' + dn(name) + '」？', () => {
+          custom = custom.filter(i => i.n !== name);
+          delete aliases[name]; delete unitAlias[name];
+          persist(); buildTabs(); renderList();
+        }); break;
+
+      case 'clear-all-custom':
+        customConfirm(`刪除全部 ${custom.length} 個自定義品項？`, () => {
+          custom.forEach(it => { delete aliases[it.n]; delete unitAlias[it.n]; });
+          custom = []; persist();
+          curCat = '南北貨'; buildTabs(); renderList();
+        }); break;
+
+      case 'open-add':
+        openAddSheet(); break;
+
+      case 'adj':
+        const field = el.dataset.field, delta = parseInt(el.dataset.delta);
+        if(!debounced(name+field)) return;
+        if(field === 'opening'){
+          const cur = parseFloat(gopen(name))||0;
+          const next = Math.max(0, cur+delta);
+          sopen(name, next===0?'':next);
+          const inp2 = document.querySelector(`.stock-inp[data-name="${encodeURIComponent(name)}"]`);
+          if(inp2) inp2.value = next||'';
+          refreshStock(name);
+        } else {
+          const cur = parseInt(gv(name,field))||0;
+          const next = Math.max(0, cur+delta);
+          sv(name, field, next===0?'':next);
+          const inp3 = document.querySelector(`.qi[data-name="${encodeURIComponent(name)}"][data-field="${field}"]`);
+          if(inp3) inp3.value = next||'';
+          refreshCard(name);
+        }
+        break;
+    }
+  });
+
+  // Input typing
+  document.getElementById('itemList').addEventListener('input', e => {
+    const inp = e.target;
+    const name = inp.dataset.name ? decodeURIComponent(inp.dataset.name) : null;
+    const field = inp.dataset.field;
+    if(!name || !field) return;
+    const raw = inp.value;
+    if(field === 'opening'){
+      const v = raw==='' ? '' : parseFloat(raw)||'';
+      sopen(name, v===0?'':v);
+      refreshStock(name);
+    } else if(field === 'price'){
+      const v = raw==='' ? '' : parseFloat(raw)||'';
+      sv(name, field, v===0?'':v);
+      refreshCard(name);
+    } else {
+      const v = raw==='' ? '' : parseInt(raw)||'';
+      sv(name, field, v===0?'':v);
+      refreshCard(name);
+    }
+  });
+
+  // Header buttons
+  document.getElementById('btnAdd').addEventListener('click', () => {
+    curCat = '自定義'; buildTabs(); renderList(); openAddSheet();
+  });
+  document.getElementById('btnMonth').addEventListener('click', () => openSheet('sheetMonth'));
+  document.getElementById('btnExport').addEventListener('click', buildExport);
+  document.getElementById('btnExport2').addEventListener('click', buildExport);
+  document.getElementById('btnClearDay').addEventListener('click', () => {
+    customConfirm('清除 ' + fmtDate(curDate) + ' 的所有記錄？', () => {
+      delete recs[curDate]; persist(); renderList();
+    });
+  });
+
+
+  // Copy
+  document.getElementById('btnNativeShare').addEventListener('click', () => {
+    const text = document.getElementById('expBox').textContent;
+    if(navigator.share){
+      navigator.share({ title:'庫存點貨記錄', text: text })
+        .catch(e => console.log('Share cancelled'));
+    } else {
+      // fallback: copy
+      if(navigator.clipboard){
+        navigator.clipboard.writeText(text).then(() => customAlert('✅ 已複製！請手動貼到 LINE'));
+      }
+    }
+  });
+
+  document.getElementById('btnCopy').addEventListener('click', () => {
+    const text = document.getElementById('expBox').textContent;
+    const btn = document.getElementById('btnCopy');
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = '✅ 已複製！';
+        setTimeout(() => btn.textContent = '📋 複製全部文字', 2000);
+      });
+    }
+  });
+
+  // Sheet closes
+  document.querySelectorAll('[data-close]').forEach(b => {
+    b.addEventListener('click', () => closeSheet(b.dataset.close));
+  });
+  document.querySelectorAll('.overlay').forEach(o => {
+    o.addEventListener('click', e => { if(e.target===o) closeSheet(o.id); });
+  });
+
+  // Add confirm
+  document.getElementById('btnAddOk').addEventListener('click', () => {
+    const name = document.getElementById('inName').value.trim();
+    const unit = document.getElementById('inUnit').value.trim() || '件';
+    if(!name){ customAlert('請輸入品項名稱'); return; }
+    if(custom.find(i => i.n === name)){ customAlert('品項已存在'); return; }
+    custom.push({n:name, u:unit});
+    persist(); buildTabs(); renderList(); closeSheet('sheetAdd');
+  });
+
+  // Edit name confirm
+  document.getElementById('btnEditNameOk').addEventListener('click', () => {
+    const v = document.getElementById('editNameInp').value.trim();
+    if(!v){ customAlert('請輸入名稱'); return; }
+    if(v === editingName) delete aliases[editingName];
+    else aliases[editingName] = v;
+    persist(); renderList(); closeSheet('sheetEditName');
+  });
+
+  // Edit unit confirm
+  document.getElementById('btnEditUnitOk').addEventListener('click', () => {
+    const v = document.getElementById('editUnitInp').value.trim();
+    if(!v){ customAlert('請輸入單位'); return; }
+    const it = findItem(editingUnitName);
+    if(v === (it?it.u:'')) delete unitAlias[editingUnitName];
+    else unitAlias[editingUnitName] = v;
+    persist(); renderList(); closeSheet('sheetEditUnit');
+  });
+
+  // Month calc
+  document.getElementById('btnCalc').addEventListener('click', calcMonth);
+
+  // Confirm dialog
+  document.getElementById('cdlgNo').addEventListener('click', () => closeSheet('cdlg'));
+  document.getElementById('cdlgYes').addEventListener('click', () => {
+    closeSheet('cdlg');
+    if(confirmCb){ confirmCb(); confirmCb = null; }
+  });
+}
+
+// ── Sheets ────────────────────────────────────────────────────────
+function openSheet(id){ document.getElementById(id).classList.add('open') }
+function closeSheet(id){ document.getElementById(id).classList.remove('open') }
+
+function openAddSheet(){
+  document.getElementById('inName').value = '';
+  document.getElementById('inUnit').value = '';
+  openSheet('sheetAdd');
+}
+
+function customConfirm(msg, cb){
+  confirmCb = cb;
+  document.getElementById('cdlgMsg').textContent = msg;
+  document.getElementById('cdlgYes').style.display = '';
+  document.getElementById('cdlgNo').textContent = '取消';
+  openSheet('cdlg');
+}
+function customAlert(msg){
+  document.getElementById('cdlgMsg').textContent = msg;
+  document.getElementById('cdlgYes').style.display = 'none';
+  document.getElementById('cdlgNo').textContent = '好的';
+  openSheet('cdlg');
+  document.getElementById('cdlgNo').onclick = () => {
+    closeSheet('cdlg');
+    document.getElementById('cdlgYes').style.display = '';
+    document.getElementById('cdlgNo').textContent = '取消';
+    document.getElementById('cdlgNo').onclick = null;
+  };
+}
+
+// ── Export ────────────────────────────────────────────────────────
+function buildExport(){
+  const day = recs[curDate] || {};
+  let text = `📦 庫存點貨記錄\n📅 ${fmtDate(curDate)}\n${'─'.repeat(24)}\n\n`;
+  let grand = 0, hasAny = false;
+
+  getCats().forEach(cat => {
+    const rows = cat.items.filter(it => {
+      var d = day ? day[it.n] : null; return d && (d.in!==''||d.rem!==''||d.price!=='');
+    });
+    if(!rows.length) return;
+    hasAny = true;
+    text += `【${cat.name}】\n`;
+    rows.forEach(it => {
+      const d = day[it.n], parts = [];
+      const u = du(it.n, it.u);
+      if(d.in!=='') parts.push(`進 ${d.in}${u}`);
+      if(d.rem!=='') parts.push(`領取 ${d.rem}${u}`);
+      if(d.price!=='') parts.push(`單價 $${d.price}`);
+      const sub = (parseFloat(d.in)||0)*(parseFloat(d.price)||0);
+      if(sub>0){ parts.push(`小計$${sub.toFixed(0)}`); grand+=sub; }
+      const op = gopen(it.n);
+      if(op!==''||d.in!==''||d.rem!=='') parts.push(`結存 ${calcStock(it.n)}${u}`);
+      text += `  ${dn(it.n)}：${parts.join('  ')}\n`;
+    });
+    text += '\n';
+  });
+
+  if(!hasAny) text += '（今日尚無記錄）\n';
+  if(grand>0) text += `${'─'.repeat(24)}\n💰 今日進貨總計：$${grand.toFixed(0)}\n`;
+
+  const all = allItems();
+  const f = all.filter(it => { const d=day[it.n]; return d&&(d.in!==''||d.rem!==''||d.price!==''); }).length;
+  document.getElementById('expSub').textContent = `${fmtDate(curDate)}　已記錄 ${f} 項`;
+  document.getElementById('expBox').textContent = text;
+  document.getElementById('btnCopy').textContent = '📋 複製全部文字';
+  openSheet('sheetExport');
+}
+
+// ── Month summary ─────────────────────────────────────────────────
+function initMonthSelects(){
+  const now = new Date();
+  const yEl = document.getElementById('selYear');
+  const mEl = document.getElementById('selMon');
+  for(let y = now.getFullYear(); y >= now.getFullYear()-2; y--){
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '年';
+    if(y === now.getFullYear()) o.selected = true;
+    yEl.appendChild(o);
+  }
+  for(let m = 1; m <= 12; m++){
+    const o = document.createElement('option');
+    o.value = String(m).padStart(2,'0');
+    o.textContent = m + '月';
+    if(m === now.getMonth()+1) o.selected = true;
+    mEl.appendChild(o);
+  }
+}
+
+let _monthData = null;
+
+function calcMonth(){
+  const y = document.getElementById('selYear').value;
+  const m = document.getElementById('selMon').value;
+  const prefix = `${y}-${m}`;
+  const days = Object.keys(recs).filter(d => d.startsWith(prefix)).sort();
+
+  if(!days.length){
+    document.getElementById('monthResult').innerHTML =
+      '<div class="empty"><div class="ei">📭</div><p>本月尚無記錄</p></div>';
+    _monthData = null; return;
+  }
+
+  const agg = {};
+  days.forEach(d => {
+    Object.entries(recs[d]||{}).forEach(([name,r]) => {
+      if(!agg[name]) agg[name] = {totalIn:0, totalCost:0, unit:''};
+      const it = findItem(name);
+      agg[name].unit = du(name, it?it.u:'');
+      const qty = parseFloat(r.in)||0;
+      const price = parseFloat(r.price)||0;
+      agg[name].totalIn += qty;
+      agg[name].totalCost += qty * price;
+    });
+  });
+
+  _monthData = {y, m, days, agg};
+
+  let html = `<div style="font-size:11px;color:#6B7A99;margin:0 0 12px">${y}年${parseInt(m)}月　共 ${days.length} 天有記錄</div>`;
+  let grandTotal = 0;
+
+  getCats().forEach(cat => {
+    const rows = cat.items.filter(it => agg[it.n] && agg[it.n].totalIn > 0);
+    if(!rows.length) return;
+    html += `<div class="m-section"><div class="m-sec-title">【${cat.name}】</div>`;
+    rows.forEach(it => {
+      const a = agg[it.n];
+      const op = gopen(it.n);
+      grandTotal += a.totalCost;
+      html += `<div class="m-row">
+        <div class="m-item">${dn(it.n)}</div>
+        <div style="text-align:right">
+          <div class="m-vals">進貨 ${a.totalIn}${a.unit}</div>
+          ${op!=='' ? `<div class="m-stock">期初 ${op}${a.unit}</div>` : ''}
+          ${a.totalCost>0 ? `<div class="m-cost">$${a.totalCost.toFixed(0)}</div>` : ''}
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  if(grandTotal > 0){
+    html += `<div class="m-grand">
+      <div class="m-grand-lbl">本月進貨總計</div>
+      <div class="m-grand-val">$${grandTotal.toFixed(0)}</div>
+    </div>`;
+  }
+
+  html += `<div class="share-row">
+    <button class="fb" style="margin:0;flex:1" onclick="shareMonthText()">📋 複製文字</button>
+    <button class="fb sec" style="margin:0;flex:1" onclick="shareMonthText()">📋 複製報表文字</button>
+  </div>`;
+
+  document.getElementById('monthResult').innerHTML = html;
+}
+
+function buildMonthText(){
+  if(!_monthData) return '';
+  const {y, m, days, agg} = _monthData;
+  let t = `📊 ${y}年${parseInt(m)}月 庫存月總結\n共 ${days.length} 天記錄\n${'─'.repeat(24)}\n\n`;
+  let grand = 0;
+  getCats().forEach(cat => {
+    const rows = cat.items.filter(it => agg[it.n] && agg[it.n].totalIn > 0);
+    if(!rows.length) return;
+    t += `【${cat.name}】\n`;
+    rows.forEach(it => {
+      const a = agg[it.n], op = gopen(it.n);
+      t += `  ${dn(it.n)}：進貨 ${a.totalIn}${a.unit}`;
+      if(op!=='') t += ` ｜ 期初 ${op}${a.unit}`;
+      if(a.totalCost>0){ t += ` ｜ $${a.totalCost.toFixed(0)}`; grand+=a.totalCost; }
+      t += '\n';
+    });
+    t += '\n';
+  });
+  if(grand>0) t += `${'─'.repeat(24)}\n💰 本月進貨總計：$${grand.toFixed(0)}\n`;
+  return t;
+}
+
+function shareMonthText(){
+  const text = buildMonthText();
+  if(!text){ customAlert('請先點「計算」再分享'); return; }
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(() => {
+      customAlert('✅ 已複製！可貼到 LINE 或群組');
+    }).catch(() => {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      customAlert('✅ 已複製！');
+    });
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    customAlert('✅ 已複製！');
+  }
+}
+
+function downloadReport(){
+  if(!_monthData){ customAlert('請先點「計算」再下載'); return; }
+  const {y, m, days, agg} = _monthData;
+  let rows = '', grand = 0;
+  getCats().forEach(cat => {
+    const catRows = cat.items.filter(it => agg[it.n] && agg[it.n].totalIn > 0);
+    if(!catRows.length) return;
+    rows += `<tr><td colspan="4" style="background:#1A3A6B;color:#fff;font-weight:700;padding:8px 12px">${cat.name}</td></tr>`;
+    catRows.forEach(it => {
+      const a = agg[it.n], op = gopen(it.n);
+      if(a.totalCost>0) grand += a.totalCost;
+      rows += `<tr>
+        <td style="padding:7px 12px;font-size:13px;font-weight:600">${dn(it.n)}</td>
+        <td style="padding:7px;text-align:center;color:#1B5E20;font-weight:700">${a.totalIn}${a.unit}</td>
+        <td style="padding:7px;text-align:center;color:#6A1B9A;font-weight:700">${op!==''?op+a.unit:'—'}</td>
+        <td style="padding:7px;text-align:right;color:#0D47A1;font-weight:700">${a.totalCost>0?'$'+a.totalCost.toFixed(0):'—'}</td>
+      </tr>`;
+    });
+  });
+  const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${y}年${parseInt(m)}月庫存報表</title>
+  <style>body{font-family:-apple-system,sans-serif;margin:0;padding:14px;background:#F4F7FB}
+  .wrap{max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 14px rgba(0,0,0,.1)}
+  .ttl{background:#0D1F3C;color:#fff;padding:16px 18px}
+  .ttl h1{margin:0;font-size:17px}.ttl p{margin:3px 0 0;color:#A8C4E8;font-size:12px}
+  table{width:100%;border-collapse:collapse}
+  th{background:#E8EFF8;padding:7px 10px;font-size:11px;color:#4A6FA5;font-weight:700;text-align:left}
+  th:nth-child(n+2){text-align:center}
+  tr:nth-child(even) td{background:#F8FAFD}
+  .grand{background:#0D1F3C;color:#fff;padding:12px 18px;display:flex;justify-content:space-between;align-items:center}
+  .gl{font-size:12px;color:#A8C4E8}.gv{font-size:18px;font-weight:800;color:#FFE082}
+  </style></head><body>
+  <div class="wrap">
+    <div class="ttl"><h1>📊 ${y}年${parseInt(m)}月 庫存月總結</h1><p>共 ${days.length} 天記錄　產生：${new Date().toLocaleString('zh-TW')}</p></div>
+    <table><thead><tr><th>品項</th><th>本月進貨</th><th>期初庫存</th><th>進貨金額</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    ${grand>0?`<div class="grand"><div class="gl">本月進貨總計</div><div class="gv">$${grand.toFixed(0)}</div></div>`:''}
+  </div></body></html>`;
+  // iOS Safari doesn't support Blob download — open in new tab instead
+  const win = window.open('', '_blank');
+  if(win){
+    win.document.write(html);
+    win.document.close();
+  } else {
+    // fallback: data URI
+    const enc = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+    const a = document.createElement('a');
+    a.href = enc;
+    a.download = `庫存報表_${y}年${parseInt(m)}月.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+}
+
+// ── Backup / Restore ──────────────────────────────────────────────
+function backupData(){
+  const data = {recs, custom, aliases, unitAlias, opening, v:3, at:new Date().toISOString()};
+  const json = JSON.stringify(data, null, 2);
+  const enc = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+  const d = new Date();
+  const a = document.createElement('a');
+  a.href = enc;
+  a.download = `庫存備份_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function restoreData(e){
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(!data.recs) throw new Error('格式錯誤');
+      recs      = data.recs      || {};
+      custom    = data.custom    || [];
+      aliases   = data.aliases   || {};
+      unitAlias = data.unitAlias || {};
+      opening   = data.opening   || {};
+      persist(); buildTabs(); renderList();
+      customAlert('✅ 資料還原成功！');
+    } catch(err){
+      customAlert('❌ 檔案格式錯誤，無法還原');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+</script>
+</body>
+</html>
